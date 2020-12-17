@@ -37,7 +37,10 @@ def analysis(actual, predict, classes):
 
 def inter_model(input1, pool_type):
     def cell(filter_num, inputs, pool):
+        #xx = inputs
         xx = BatchNormalization()(inputs)
+        #xx = Conv1D(filter_num*2, kernel_size = 2, padding = "same", activation = "relu", kernel_initializer = "normal")(xx)
+
         x1 = Conv1D(filter_num, kernel_size = 1, activation = "relu")(xx)
         
         x2 = Conv1D(filter_num*4, kernel_size = 5, padding = "same", activation = "relu", kernel_initializer='normal')(xx)
@@ -52,14 +55,30 @@ def inter_model(input1, pool_type):
         merge = concatenate([x1, x2, x3, x4], axis=2)
         if pool == 1:
             pooling = MaxPooling1D(pool_size=2)(merge)
-        else:
+        elif pool == 2:
             pooling = AveragePooling1D(pool_size=2)(merge)
+        else:
+            pooling = merge
+        #pooling = BatchNormalization()(pooling)
         return pooling
 
     x = input1
-    cell1 = cell(16, x, pool_type)
+    cell1 = cell(16, x, 0)
     cell1 = cell(16, cell1, pool_type)
+    cell1 = Dropout(0.1)(cell1)
+    cell1 = cell(16, cell1, 0)
     cell1 = cell(16, cell1, pool_type)
+    cell1 = Dropout(0.1)(cell1)
+    cell1 = cell(16, cell1, 0)
+    cell1 = cell(16, cell1, pool_type)
+    cell1 = Dropout(0.1)(cell1)
+    cell1 = cell(16, cell1, 0)
+    cell1 = cell(16, cell1, pool_type)
+    #cell1 = Dropout(0.3)(cell1)
+    #cell1 = cell(32, cell1, 0)
+    #cell1 = cell(32, cell1, pool_type)
+    #cell1 = Dropout(0.2)(cell1)
+    
     cell1 = Dropout(0.5)(cell1)
     
     return cell1
@@ -76,7 +95,7 @@ def get_model(input_data, label, classes):
     model = Model(inputs= input1, outputs= D_out)
     model.compile(optimizer = Adam(lr = 0.001), loss = 'categorical_crossentropy', metrics= ['categorical_accuracy'])
     model.summary()
-    early_stopping = EarlyStopping(monitor='val_loss', patience=5, verbose=2)
+    early_stopping = EarlyStopping(monitor='val_loss', patience=10, verbose=2)
     model.fit(input_data, label, epochs=200, validation_split=0.3, callbacks=[early_stopping], batch_size=64)
     return model
 
@@ -94,8 +113,8 @@ def result(train, label, classes, model_name = None):
 if __name__ == "__main__":
     inter = np.load("./datas/cap_PPG_150s_initial.npy")
     label = np.load("./datas/cap_label_for_PPG_150s_initial.npy")
-    classes = 5
-    train, stage = preprocess.get_data(inter, label, classes)
+    classes = 4
+    train, stage = preprocess.get_data_balance(inter, label, classes)
     results = result(train, stage, classes)
     print(results)
 
